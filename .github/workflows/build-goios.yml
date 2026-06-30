@@ -26,12 +26,19 @@ jobs:
       - name: Build for iOS arm64
         working-directory: goios-ondevice
         run: |
-          CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
-            go build -ldflags="-s -w" -o goios .
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "iOS SDK: $SDK_PATH"
+          export CGO_ENABLED=1
+          export GOOS=ios
+          export GOARCH=arm64
+          export CGO_CFLAGS="-isysroot $SDK_PATH -miphoneos-version-min=12.0 -arch arm64"
+          export CGO_LDFLAGS="-isysroot $SDK_PATH -miphoneos-version-min=12.0 -arch arm64"
+          go build -ldflags="-s -w" -o goios .
           echo "=== Binary info ==="
           file goios
           ls -lh goios
-          echo "=== Expected: Mach-O arm64 iOS executable ==="
+          echo "=== Linked dylibs ==="
+          otool -L goios || true
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
