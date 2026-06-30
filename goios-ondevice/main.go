@@ -1,9 +1,9 @@
 // ==========================================================================
 // goios-ondevice — 在 iOS 越狱设备上直连本地 lockdownd 的控制工具
-// 编译: macOS + Xcode 下执行:
-//   SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-//   CGO_ENABLED=1 GOOS=ios GOARCH=arm64 CGO_CFLAGS="-isysroot $SDK -miphoneos-version-min=12.0 -arch arm64" CGO_LDFLAGS="-isysroot $SDK -miphoneos-version-min=12.0 -arch arm64" go build -ldflags="-s -w"
-//   或通过 GitHub Actions (.github/workflows/build-goios.yml) 自动编译
+// 编译: GitHub Actions 自动编译 + ldid 伪签名 (.github/workflows/build-goios.yml)
+//   本地编译: SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+//     CGO_ENABLED=1 GOOS=ios GOARCH=arm64 CGO_CFLAGS="-isysroot $SDK -miphoneos-version-min=12.0 -arch arm64" CGO_LDFLAGS="-isysroot $SDK -miphoneos-version-min=12.0 -arch arm64" go build -ldflags="-s -w" -o goios .
+//   本地编译后需手动签名: ldid -S goios
 // 部署: 复制到 IPA 的 resources/ 目录，AutoGo 脚本通过 E执行_执行 调用
 //
 // 用法:
