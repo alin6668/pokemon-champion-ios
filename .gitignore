@@ -1,0 +1,38 @@
+# 编译产物
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+goios-ondevice/goios
+goios-ondevice/goios_*
+goios-daemon/goios-daemon
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+/tmp/
+*.tmp
+*_goios_*.txt
+*_goios_*.json
+
+# build 目录（保留结构但忽略二进制）
+build/*.ipa
+build/*.deb
+
+# Go
+vendor/
+
+# sensitive
+*.pem
+*.key

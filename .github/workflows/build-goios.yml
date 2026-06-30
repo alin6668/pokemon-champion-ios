@@ -1,0 +1,41 @@
+name: Build goios for iOS
+
+on:
+  workflow_dispatch:   # 手动触发
+  push:
+    paths:
+      - 'goios-ondevice/**'  # goios 代码变更时自动编译
+
+jobs:
+  build:
+    runs-on: macos-latest    # 免费 macOS runner，自带 Xcode
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Download dependencies
+        working-directory: goios-ondevice
+        run: go mod download
+
+      - name: Build for iOS arm64
+        working-directory: goios-ondevice
+        run: |
+          CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
+            go build -ldflags="-s -w" -o goios .
+          echo "=== Binary info ==="
+          file goios
+          ls -lh goios
+          echo "=== Expected: Mach-O arm64 iOS executable ==="
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goios-ios-arm64
+          path: goios-ondevice/goios
+          retention-days: 90
