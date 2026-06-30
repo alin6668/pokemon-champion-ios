@@ -1,15 +1,16 @@
-name: Build goios for iOS
+name: Build goios for iOS + macOS
 
 on:
   workflow_dispatch:   # 手动触发
   push:
     paths:
-      - 'goios-ondevice/**'  # goios 代码变更时自动编译
+      - 'goios-ondevice/**'
+      - 'goios-desktop/**'
 
 jobs:
-  build:
-    runs-on: macos-latest    # 免费 macOS runner，自带 Xcode
-    
+  # ========== goios-ondevice: iOS 越狱设备上运行 ==========
+  build-ondevice:
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,6 +19,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+
+      - name: Install ldid (for pseudo-signing)
+        run: brew install ldid
 
       - name: Download dependencies
         working-directory: goios-ondevice
@@ -40,9 +44,57 @@ jobs:
           echo "=== Linked dylibs ==="
           otool -L goios || true
 
-      - name: Upload artifact
+      - name: Pseudo-sign with ldid
+        working-directory: goios-ondevice
+        run: |
+          ldid -S goios
+          echo "=== Signature ==="
+          ldid -e goios 2>&1 || echo "(entitlements check done)"
+
+      - name: Upload artifact (iOS)
         uses: actions/upload-artifact@v4
         with:
           name: goios-ios-arm64
           path: goios-ondevice/goios
+          retention-days: 90
+
+  # ========== goios-desktop: Mac 端 USB 控制（免越狱） ==========
+  build-desktop:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Download dependencies
+        working-directory: goios-desktop
+        run: go mod download
+
+      - name: Build for macOS (universal: arm64 + amd64)
+        working-directory: goios-desktop
+        run: |
+          # Apple Silicon
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o goios-darwin-arm64 .
+          echo "=== arm64 binary ==="
+          file goios-darwin-arm64
+          ls -lh goios-darwin-arm64
+          # Intel
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o goios-darwin-amd64 .
+          echo "=== amd64 binary ==="
+          file goios-darwin-amd64
+          ls -lh goios-darwin-amd64
+          # Symlink default
+          cp goios-darwin-arm64 goios
+
+      - name: Upload artifact (macOS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: goios-desktop-darwin
+          path: |
+            goios-desktop/goios-darwin-arm64
+            goios-desktop/goios-darwin-amd64
           retention-days: 90
