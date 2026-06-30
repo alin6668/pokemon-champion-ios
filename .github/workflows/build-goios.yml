@@ -74,7 +74,7 @@ jobs:
         working-directory: goios-desktop
         run: go mod download
 
-      - name: Build for macOS (universal: arm64 + amd64)
+      - name: "Build for macOS (universal: arm64 + amd64)"
         working-directory: goios-desktop
         run: |
           # Apple Silicon
