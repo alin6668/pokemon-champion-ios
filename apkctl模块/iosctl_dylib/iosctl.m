@@ -33,6 +33,7 @@
 #import <sys/sysctl.h>
 #import <sys/statvfs.h>
 #import <sys/wait.h>
+#import <sys/time.h>
 
 // iOS 18 SDK 移除了 sys/reboot.h, 手动声明
 #define RB_AUTOBOOT 0
@@ -51,6 +52,33 @@ extern int reboot(int howto);
 // ---- 辅助宏 ----
 
 #define JB_PREFIX "/var/jb"
+
+// popen() 在 iOS SDK 不可用，用 fork+exec+pipe 替代
+// 执行 cmd，从 stdout 读取第一个数字返回
+static int _popen_read_int(const char *cmd) {
+    int pipefd[2];
+    if (pipe(pipefd) < 0) return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) { close(pipefd[0]); close(pipefd[1]); return -1; }
+
+    if (pid == 0) {
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);
+        dup2(pipefd[1], STDERR_FILENO);
+        close(pipefd[1]);
+        execl("/var/jb/bin/sh", "sh", "-c", cmd, NULL);
+        execl("/bin/sh", "sh", "-c", cmd, NULL);
+        _exit(127);
+    }
+
+    close(pipefd[1]);
+    char buf[64] = {0};
+    ssize_t n = read(pipefd[0], buf, sizeof(buf)-1);
+    close(pipefd[0]);
+    waitpid(pid, NULL, 0);
+    return (n > 0) ? atoi(buf) : -1;
+}
 
 // 尝试 dlopen 私有 framework (rootless -> rootful)
 static void *dlopen_fw(const char *name) {
@@ -112,7 +140,13 @@ static const char *from_ns(NSString *s, char *buf, int sz) {
 // ====================================================================
 int iosctl_respring(void) {
     NSLog(@"[iosctl] respring...");
-    system("killall -9 SpringBoard 2>/dev/null");
+    // system() unavailable on iOS, use fork+exec
+    pid_t pid = fork();
+    if (pid == 0) {
+        execl("/var/jb/usr/bin/killall", "killall", "-9", "SpringBoard", NULL);
+        execl("/usr/bin/killall", "killall", "-9", "SpringBoard", NULL);
+        _exit(1);
+    }
     return 0;
 }
 
@@ -208,14 +242,8 @@ int iosctl_home_button(void) {
 int iosctl_airplane_status(void) {
     // iOS 15+: 飞行模式由 SpringBoard 管理，无简单 CLI API
     // 检测: 所有主要网络接口是否都关闭
-    FILE *fp;
-    int wifiUp = 0, cellUp = 0;
-
-    fp = popen("ifconfig en0 2>/dev/null | grep -c 'status: active'", "r");
-    if (fp) { char buf[16]; if (fgets(buf, sizeof(buf), fp)) wifiUp = atoi(buf); pclose(fp); }
-
-    fp = popen("ifconfig pdp_ip0 2>/dev/null | grep -c 'status: active'", "r");
-    if (fp) { char buf[16]; if (fgets(buf, sizeof(buf), fp)) cellUp = atoi(buf); pclose(fp); }
+    int wifiUp = _popen_read_int("ifconfig en0 2>/dev/null | grep -c 'status: active'");
+    int cellUp = _popen_read_int("ifconfig pdp_ip0 2>/dev/null | grep -c 'status: active'");
 
     // 两个都 inactive 很可能开了飞行模式
     return (wifiUp == 0 && cellUp == 0) ? 1 : 0;
@@ -352,13 +380,8 @@ int iosctl_bluetooth_set(int on) {
 // ====================================================================
 int iosctl_cellular_status(void) {
     // 检查蜂窝接口
-    FILE *fp = popen("ifconfig pdp_ip0 2>/dev/null | grep -c 'status: active'", "r");
-    if (!fp) return -1;
-    char buf[16];
-    int up = 0;
-    if (fgets(buf, sizeof(buf), fp)) up = atoi(buf);
-    pclose(fp);
-    // 更进一步: 可通过 CoreTelephony 的 CTCellularData 检测
+    int up = _popen_read_int("ifconfig pdp_ip0 2>/dev/null | grep -c 'status: active'");
+    if (up < 0) return -1;
     return up > 0 ? 1 : 0;
 }
 
@@ -374,11 +397,11 @@ int iosctl_cellular_set(int on) {
 // ====================================================================
 static io_connect_t _brightness_connect(void) {
     io_service_t svc = IOServiceGetMatchingService(
-        kIOMasterPortDefault,
+        kIOMainPortDefault,
         IOServiceMatching("AppleBacklightDisplay"));
     if (!svc) {
         svc = IOServiceGetMatchingService(
-            kIOMasterPortDefault,
+            kIOMainPortDefault,
             IOServiceMatching("Backlight"));
     }
     if (!svc) return 0;
