@@ -1,0 +1,47 @@
+name: Build dylib_tester for iOS
+
+on:
+  push:
+    paths:
+      - 'apkctl模块/dylib_tester/**'
+      - '.github/workflows/build-dylib-tester.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build for iOS arm64
+        working-directory: apkctl模块/dylib_tester
+        run: |
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "iOS SDK: $SDK_PATH"
+          export CGO_ENABLED=1
+          export GOOS=ios
+          export GOARCH=arm64
+          export CGO_CFLAGS="-isysroot $SDK_PATH -miphoneos-version-min=12.0 -arch arm64"
+          export CGO_LDFLAGS="-isysroot $SDK_PATH -miphoneos-version-min=12.0 -arch arm64"
+          go build -ldflags="-s -w" -o dylib_tester .
+          echo "=== Binary info ==="
+          file dylib_tester
+          ls -lh dylib_tester
+          otool -L dylib_tester || true
+
+      - name: Pseudo-sign with ldid
+        working-directory: apkctl模块/dylib_tester
+        run: ldid -S dylib_tester
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dylib_tester-ios-arm64
+          path: apkctl模块/dylib_tester/dylib_tester
+          retention-days: 90
