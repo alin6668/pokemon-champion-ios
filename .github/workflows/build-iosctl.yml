@@ -1,0 +1,40 @@
+name: Build libiosctl.dylib
+
+on:
+  push:
+    paths:
+      - 'apkctl模块/iosctl_dylib/**'
+      - '.github/workflows/build-iosctl.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13  # Intel + Xcode 15 兼容 iOS 15-16
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ldid
+        run: |
+          brew install ldid 2>/dev/null || echo "ldid may already installed"
+
+      - name: Build dylib
+        working-directory: apkctl模块/iosctl_dylib
+        run: bash build_ios.sh
+
+      - name: Verify dylib
+        working-directory: apkctl模块/iosctl_dylib
+        run: |
+          echo "=== file info ==="
+          file libiosctl.dylib
+          echo "=== symbols ==="
+          nm -g libiosctl.dylib 2>/dev/null | grep iosctl_ || echo "(stripped)"
+          echo "=== size ==="
+          ls -lh libiosctl.dylib
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libiosctl.dylib
+          path: apkctl模块/iosctl_dylib/libiosctl.dylib
+          retention-days: 90
