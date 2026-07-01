@@ -17,7 +17,7 @@ xcrun --sdk iphoneos clang \
     -current_version 1.0.0 \
     -compatibility_version 1.0.0 \
     -o libiosctl.dylib \
-    iosctl.c \
+    iosctl.m \
     -framework Foundation \
     -framework UIKit \
     -framework IOKit \
