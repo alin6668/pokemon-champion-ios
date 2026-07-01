@@ -1,8 +1,9 @@
 /**
- * iosctl.c — iOS 系统级控制 dylib 实现
+ * iosctl.m — iOS 系统级控制 dylib
  * ======================================
  * Dopamine rootless 越狱 (iOS 15-16)
  * dlopen 私有框架 + objc runtime，无需 Activator/goios 插件
+ * 纯 C/ObjC 编译，独立于 Go 项目
  *
  * 编译:
  *   xcrun --sdk iphoneos clang -arch arm64 \
