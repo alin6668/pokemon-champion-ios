@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13  # Intel + Xcode 15 兼容 iOS 15-16
+    runs-on: macos-latest  # 兼容 iOS 15-16 arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
