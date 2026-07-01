@@ -30,10 +30,13 @@
 #import <string.h>
 #import <unistd.h>
 #import <signal.h>
-#import <sys/reboot.h>
 #import <sys/sysctl.h>
 #import <sys/statvfs.h>
 #import <sys/wait.h>
+
+// iOS 18 SDK 移除了 sys/reboot.h, 手动声明
+#define RB_AUTOBOOT 0
+extern int reboot(int howto);
 #import <objc/runtime.h>
 #import <objc/message.h>
 #import <mach/mach.h>
